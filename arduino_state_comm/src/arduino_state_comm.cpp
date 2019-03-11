@@ -1,6 +1,12 @@
 #include <ros/ros.h>
 #include <serial/serial.h>
+#include <serial/utils/serial_listener.h>
 #include <string>
+#include <sstream>
+
+#include <ohm_igvc_msgs/RobotState.h>
+#include <ohm_igvc_msgs/ArduinoInfo.h>
+#include <vn300/Status.h>
 
 class ArduinoStateComm
 {
@@ -20,22 +26,23 @@ class ArduinoStateComm
         void robotStateReceived_callback(const ohm_igvc_msgs::RobotState& message);
         // Description: Callback function for the GPS status topic
         void gpsStatusReceived_callback(const vn300::Status& message);
-        // Description: Function reads the from the Arduino pause, E-top, and kill
-        void readEmergencyStates();
+        // Description: Function reads the from the Arduino
+        void readArduino();
+        // Description: Function publishes values read from the Arduino
+        void publishArduinoInfo(int values[]);
 
-        // Public members for the Arduino port name and serial port object
+        // Public members for the Arduino port name, serial port object, and listener
         std::string arduinoPortName;
         serial::Serial *arduinoSerialPort;
+        serial::utils::SerialListener serialListener;
 
     private:
         // Private members for the subscribers for the robot state and GPS
         ros::Subscriber robotStateSub;
         ros::Subscriber gpsStatusSub;
 
-        // Private members for the emergency states read from the Arduino
-        bool estopped;
-        bool killed;
-        bool paused;
+        // Private member for the publisher for the battery, estop, and kill states
+        ros::Publisher arduinoInfoPub;
 }; // END of class Arduino state communication
 
 ArduinoStateComm::ArduinoStateComm(ros::NodeHandle& nodeHandle)
@@ -43,10 +50,17 @@ ArduinoStateComm::ArduinoStateComm(ros::NodeHandle& nodeHandle)
     // Subscribe to topic. 1 = topic name, 2 = queue size, 3 = callback function, 4 = object to call function on
     robotStateSub = nodeHandle.subscribe("robotState", 1, &ArduinoStateComm::robotStateReceived_callback, this);
     gpsStatusSub = nodeHandle.subscribe("gpsStatus", 1, &ArduinoStateComm::gpsStatusReceived_callback, this);
+
+    // Publish to topic.
+    arduinoInfoPub = nodeHandle.advertise<ohm_igvc_msgs::ArduinoInfo>("arduino_info", 1);
 } // END of ArduinoStateComm constructor
 
 void ArduinoStateComm::arduinoDisconnect()
 {
+    if(serialListener.isListening())
+    {
+        serialListener.stopListening();
+    } // END of if the serial listener is listening
     if(arduinoSerialPort != NULL)
     {
 	    delete arduinoSerialPort;
@@ -73,14 +87,17 @@ void ArduinoStateComm::arduinoConnect()
 	serial::Timeout to = serial::Timeout::simpleTimeout(10);
 	arduinoSerialPort->setTimeout(to);
 	
-	arduinoSerialPort->open();
+    arduinoSerialPort->open();
+    
+    serialListener.setChunkSize(2);
+    serialListener.setartListening(*arduinoSerialPort);
 	ROS_INFO("Connected to Arduino.");
 } // END of arduinoConnect() function
 	
 void ArduinoStateComm::arduinoSendCommand(string command)
 {
 	ROS_INFO("Sending Arduino commend: %s", command.c_str());
-	arduinoSerialPort->write(command+"\r");
+	arduinoSerialPort->write(command+"\r\n");
 } // END of arduinoSendCommand() function
 
 void ArduinoStateComm::robotStateReceived_callback(const ohm_igvc_msgs::RobotState& message)
@@ -95,13 +112,67 @@ void ArduinoStateComm::robotStateReceived_callback(const ohm_igvc_msgs::RobotSta
 void ArduinoStateComm::gpsStatusReceived_callback(const vn300::Status& message)
 {
     // Send GPS status to Arduino
-    arduinoSendCommand(message.state);
+    switch(message.fix)
+    {
+        case 0:
+            arduinoSendCommand("O");
+            break;
+        case 1:
+            arduinoSendCommand("S");
+            break;
+            case 2:
+        case 3:
+            arduinoSendCommand("F");
+            break;
+        default:
+            break;
+    } // END of switch
 } // END of gpsStatusReceived_callback() function
 
-void ArduinoStateComm::readEmergencyStates()
+void ArduinoStateComm::readArduino()
 {
-    std::bitset<8> emergencyStatesByte;
-} // END of readEmergencyStates() function
+    // Create buffer filter pointer with delimeter of \r\n
+    // As of 2-26-19: Each token is a strig of numbers separated by commas
+    //      1st = kill, 2nd = pause, 3-8 = cell voltage, 9 = temp
+    BufferedFilterPtr bufferFilter = serialListener.createBufferedFilter(SerialListener::delimeter_tokenizer("\r\n"));
+    
+    string valueStr;
+    double convertedValues[9];
+
+    string line = bufferFilter->wait(50);
+    if(!line.empty())
+    {
+        stringstream ss(line);
+        
+        for(int valueIndex = 0; valueIndex < 9; valueIndex++)
+        {
+            // Get the value using a commas a delimiter
+            getline(ss, valueStr, ',');
+
+            // Convert the string to an int
+            stringstream convertToDouble(valueStr);
+            convertToDouble >> convertedValues[valueIndex;
+        } // END of for loop going through all the values
+
+        publishArduinoInfo(convertedValues);
+    } // END of if the line isn't empty
+} // END of readArduino() function
+
+void ArduinoStateComm::publishArduinoInfo(double values[])
+{
+    ohm_igvc_msgs::ArduinoInfo message;
+    message.killState = values[0];
+    message.pauseState = values[1];
+    message.cell1 = values[2];
+    message.cell2 = values[3];
+    message.cell3 = values[4];
+    message.cell4 = values[5];
+    message.cell5 = values[6];
+    message.cell6 = values[7];
+    message.temp = values[8];
+
+    arduinoInfoPub.publish(message);
+} // END of publishArduinoInfo() function
 
 // Main function
 int main(int argc, char **argv)
@@ -114,5 +185,14 @@ int main(int argc, char **argv)
 
     // Get the serial port name from parameters or use default
     nh.param("arduino_serial_port", arduinoObj.arduinoPortName, std::string("/dev/ttyACM0"));
+    
+    arduinoObj.arduinoConnect();
+    arduinoObj.arduinoSendCommand("Start");
 
+    ros::Rate rate(2);
+    while(ros::ok())
+    {
+        arduinoObj.readArduino();
+        ros::spin();
+    } // END of while ros ok
 } // END of main() function
