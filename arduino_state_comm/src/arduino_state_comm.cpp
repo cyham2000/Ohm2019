@@ -67,7 +67,7 @@ void ArduinoStateComm::arduinoDisconnect()
 	    arduinoSerialPort = NULL;
 	} // END of if the serial port is not null
 } // END of arduinoDisconnect() function
-	
+
 void ArduinoStateComm::arduinoConnect()
 {
     if(arduinoPortName.empty())
@@ -75,9 +75,9 @@ void ArduinoStateComm::arduinoConnect()
         ROS_ERROR("Arduino serial port name is empty.");
         return;
 	} // END of if the port name is empty
-	
+
 	arduinoDisconnect();
-    
+
     // Create and configure new serial port
 	arduinoSerialPort = new Serial();
 	arduinoSerialPort->setPort(arduinoPortName);
@@ -86,14 +86,14 @@ void ArduinoStateComm::arduinoConnect()
 	arduinoSerialPort->setParity(serial::parity_even);
 	serial::Timeout to = serial::Timeout::simpleTimeout(10);
 	arduinoSerialPort->setTimeout(to);
-	
+
     arduinoSerialPort->open();
-    
+
     serialListener.setChunkSize(2);
     serialListener.setartListening(*arduinoSerialPort);
 	ROS_INFO("Connected to Arduino.");
 } // END of arduinoConnect() function
-	
+
 void ArduinoStateComm::arduinoSendCommand(string command)
 {
 	ROS_INFO("Sending Arduino commend: %s", command.c_str());
@@ -131,11 +131,11 @@ void ArduinoStateComm::gpsStatusReceived_callback(const vn300::Status& message)
 
 void ArduinoStateComm::readArduino()
 {
-    // Create buffer filter pointer with delimeter of \r\n
-    // As of 2-26-19: Each token is a strig of numbers separated by commas
+    // Create buffer filter pointer with delimiter of \r\n
+    // As of 2-26-19: Each token is a string of numbers separated by commas
     //      1st = kill, 2nd = pause, 3-8 = cell voltage, 9 = temp
     BufferedFilterPtr bufferFilter = serialListener.createBufferedFilter(SerialListener::delimeter_tokenizer("\r\n"));
-    
+
     string valueStr;
     double convertedValues[9];
 
@@ -143,7 +143,7 @@ void ArduinoStateComm::readArduino()
     if(!line.empty())
     {
         stringstream ss(line);
-        
+
         for(int valueIndex = 0; valueIndex < 9; valueIndex++)
         {
             // Get the value using a commas a delimiter
@@ -151,7 +151,7 @@ void ArduinoStateComm::readArduino()
 
             // Convert the string to an int
             stringstream convertToDouble(valueStr);
-            convertToDouble >> convertedValues[valueIndex;
+            convertToDouble >> convertedValues[valueIndex];
         } // END of for loop going through all the values
 
         publishArduinoInfo(convertedValues);
@@ -180,12 +180,12 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "arduino_state_comm");
     ros::NodeHandle nh;
 
-    // Create object used to communicate states with the Ardunio.
+    // Create object used to communicate states with the Arduino.
     ArduinoStateComm arduinoObj(nh);
 
     // Get the serial port name from parameters or use default
     nh.param("arduino_serial_port", arduinoObj.arduinoPortName, std::string("/dev/ttyACM0"));
-    
+
     arduinoObj.arduinoConnect();
     arduinoObj.arduinoSendCommand("Start");
 
