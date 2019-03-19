@@ -29,7 +29,7 @@ bool get_pose(tf::TransformListener &pose_listener) { // toss all the update cod
 		pose_listener.lookupTransform(ref_frame_id, base_frame_id, ros::Time(0), tform);
 		r_pose.position.x = tform.getOrigin().x();
 		r_pose.position.y = tform.getOrigin().y();
-		r_pose.heading = circular_range::wrap(tf::getYaw(tform.getRotation()) * (180.0 / geometric::pi), 360.0); // convert to degrees and put into [0, 360)
+		r_pose.heading = utility::circular_range::wrap(tf::getYaw(tform.getRotation()) * (180.0 / utility::geometry::pi), 360.0); // convert to degrees and put into [0, 360)
 		raw_heading = r_pose.heading - 180.0;
 		return true;	
 	} 
@@ -140,13 +140,13 @@ int main(int argc, char **argv) {
 			pose.pose.position.x = r_pose.position.x;
 			pose.pose.position.y = r_pose.position.y;
 			
-			pose.pose.orientation = tf::createQuaternionMsgFromYaw(r_pose.heading * (geometric::pi / 180.0));
+			pose.pose.orientation = tf::createQuaternionMsgFromYaw(r_pose.heading * (utility::geometry::pi / 180.0));
 			pose.color = RED;
 			pose.id = 0; // normalized pose
 			
 			pnb.markers.push_back(pose);
 
-			pose.pose.orientation = tf::createQuaternionMsgFromYaw(raw_heading * (geometric::pi / 180.0));
+			pose.pose.orientation = tf::createQuaternionMsgFromYaw(raw_heading * (utility::geometry::pi / 180.0));
 			pose.color = WHITE;
 			pose.id = 1; // true pose
 
@@ -155,12 +155,12 @@ int main(int argc, char **argv) {
 			// set bounds data
 			bounds.pose.position.x = r_pose.position.x;
 			bounds.pose.position.y = r_pose.position.y;
-			bounds.pose.orientation = tf::createQuaternionMsgFromYaw(circular_range::wrap(r_pose.heading - 135.0, 360.0) * (geometric::pi / 180.0));
+			bounds.pose.orientation = tf::createQuaternionMsgFromYaw(circular_range::wrap(r_pose.heading - 135.0, 360.0) * (utility::geometry::pi / 180.0));
 			bounds.id = 0; // left lidar bound			
 
 			pnb.markers.push_back(bounds);
 			
-			bounds.pose.orientation = tf::createQuaternionMsgFromYaw(circular_range::wrap(r_pose.heading + 135.0, 360.0) * (geometric::pi / 180.0));
+			bounds.pose.orientation = tf::createQuaternionMsgFromYaw(circular_range::wrap(r_pose.heading + 135.0, 360.0) * (utility::geometry::pi / 180.0));
 			bounds.id = 1; // right lidar bound
 
 			pnb.markers.push_back(bounds);
@@ -175,10 +175,10 @@ int main(int argc, char **argv) {
 
 			// set ranges;
 			for(auto range = ranges.ranges.begin(); range != ranges.ranges.end(); ++range) {
-				start_range.pose.orientation = tf::createQuaternionMsgFromYaw(range->start * (geometric::pi / 180.0));
+				start_range.pose.orientation = tf::createQuaternionMsgFromYaw(range->start * (utility::geometry::pi / 180.0));
 				start_range.id = std::distance(ranges.ranges.begin(), range);
 
-				end_range.pose.orientation = tf::createQuaternionMsgFromYaw(range->end * (geometric::pi / 180.0));
+				end_range.pose.orientation = tf::createQuaternionMsgFromYaw(range->end * (utility::geometry::pi / 180.0));
 				end_range.id = start_range.id;
 				
 				start_ranges.markers.push_back(start_range);

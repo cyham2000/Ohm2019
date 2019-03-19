@@ -3,13 +3,15 @@
 
 #include <cmath>
 
+namespace utility {
+
 namespace rough_cmp {
 	inline bool equals(double x, double y, double threshold) { return (std::abs(x - y) < threshold); }
 	inline bool lt_eq(double x, double y, double threshold) { return (x < y || equals(x, y, threshold)); }
 	inline bool gt_eq(double x, double y, double threshold) { return (x > y || equals(x, y, threshold)); }
 }
 
-namespace circular_range {
+namespace circular_range { // all of these are in degrees. wrap might work with radians, but i wouldn't try it
 	template<class float_t>
 	inline float_t wrap(float_t angle, float_t max) { return angle - std::floor(angle / max) * max; };
 
@@ -41,8 +43,12 @@ namespace circular_range {
 	}
 }
 
-namespace geometric {
+namespace geometry {
 	static constexpr double pi = std::acos(-1);
+
+	inline double degrees(double radians) { return (180.0 * radians) / pi); }
+
+	inline double radians(double degrees) { return (pi * degrees) / 180.0); }
 
 	template<class point_t>
 	inline double distance(point_t a, point_t b) { return std::hypot(b.x - a.x, b.y - a.y); }
@@ -76,6 +82,8 @@ namespace geometric {
 	
 		return sum;
 	}
+}
+
 }
 
 #endif

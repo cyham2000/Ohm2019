@@ -10,9 +10,6 @@
 #include <tf/tf.h>
 #include <tf/transform_broadcaster.h>
 
-#define DEG2RAD(x) ((geometric::pi * x) / 180.00)
-#define RAD2DEG(x) ((180.00 * x) / geometric::pi)
-
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "test_broadcaster");
 	ros::NodeHandle node;
@@ -40,7 +37,7 @@ int main(int argc, char **argv) {
 		t.transform.translation.x = 0.0;
   		t.transform.translation.y = 0.0;
   		t.transform.translation.z = 0.0;
-  		t.transform.rotation = tf::createQuaternionMsgFromYaw(DEG2RAD(angle));
+  		t.transform.rotation = tf::createQuaternionMsgFromYaw(utility::geometry::radians(angle));
 
 		base_br.sendTransform(t);
 

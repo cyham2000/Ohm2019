@@ -52,6 +52,7 @@ add_message_files(
    FILES
    Range.msg
    RangeArray.msg
+   RobotState.msg
    Target.msg
    TurnAngles.msg
    Waypoint.msg

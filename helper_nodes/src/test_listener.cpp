@@ -8,9 +8,6 @@
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
 
-#define DEG2RAD(x) ((geometric::pi * x) / 180.00)
-#define RAD2DEG(x) ((180.00 * x) / geometric::pi)
-
 ohm_igvc_msgs::Waypoint r_pose;
 double unwrapped_angle;
 
@@ -23,8 +20,8 @@ bool get_pose(tf::TransformListener &pose_listener) { // toss all the update cod
 		pose_listener.lookupTransform(ref_frame_id, base_frame_id, ros::Time(0), tform);
 		r_pose.position.x = tform.getOrigin().x();
 		r_pose.position.y = tform.getOrigin().y();
-		r_pose.heading = circular_range::wrap(RAD2DEG(tf::getYaw(tform.getRotation())), 360.0); // convert to degrees and put into [0, 360)
-		unwrapped_angle = RAD2DEG(tf::getYaw(tform.getRotation()));
+		r_pose.heading = utility::circular_range::wrap(utility::geometry::degrees(tf::getYaw(tform.getRotation())), 360.0); // convert to degrees and put into [0, 360)
+		unwrapped_angle = utility::geometry::degrees(tf::getYaw(tform.getRotation()));
 		return true;	
 	} 
 		
