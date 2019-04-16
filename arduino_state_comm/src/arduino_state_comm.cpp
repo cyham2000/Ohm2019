@@ -41,8 +41,10 @@ class ArduinoStateComm
         ros::Subscriber robotStateSub;
         ros::Subscriber gpsStatusSub;
 
-        // Private member for the publisher for the battery, estop, and kill states
-        ros::Publisher arduinoInfoPub;
+        // Private member for the publisher for estop and kill states
+        ros::Publisher arduinoKillStatePub;
+        // Private member for the publisher for the batteries
+        ros::Publisher arduinoBatteryPub;  
 }; // END of class Arduino state communication
 
 ArduinoStateComm::ArduinoStateComm(ros::NodeHandle& nodeHandle)
@@ -51,8 +53,9 @@ ArduinoStateComm::ArduinoStateComm(ros::NodeHandle& nodeHandle)
     robotStateSub = nodeHandle.subscribe("robotState", 1, &ArduinoStateComm::robotStateReceived_callback, this);
     gpsStatusSub = nodeHandle.subscribe("gpsStatus", 1, &ArduinoStateComm::gpsStatusReceived_callback, this);
 
-    // Publish to topic.
-    arduinoInfoPub = nodeHandle.advertise<ohm_igvc_msgs::ArduinoInfo>("arduino_info", 1);
+    // Publish to topic.arduinoInfoPub
+    arduinoKillStatePub = nodeHandle.advertise<ohm_igvc_msgs::ArduinoKillState>("arduino_kill_state", 1);
+    arduinoBatteryPub = nodeHandle.advertise<ohm_igvc_msgs::ArduinoBattery>("arduino_batteries", 1);
 } // END of ArduinoStateComm constructor
 
 void ArduinoStateComm::arduinoDisconnect()
@@ -160,18 +163,21 @@ void ArduinoStateComm::readArduino()
 
 void ArduinoStateComm::publishArduinoInfo(double values[])
 {
-    ohm_igvc_msgs::ArduinoInfo message;
-    message.killState = values[0];
-    message.pauseState = values[1];
-    message.cell1 = values[2];
-    message.cell2 = values[3];
-    message.cell3 = values[4];
-    message.cell4 = values[5];
-    message.cell5 = values[6];
-    message.cell6 = values[7];
-    message.temp = values[8];
+    ohm_igvc_msgs::ArduinoKillState killStateMsg;
+    killStateMsg.kill = (values[0] == 0) ? false : true;
+    killStateMsg.pause = (values[1] == 0) ? false : true;
 
-    arduinoInfoPub.publish(message);
+    ohm_igvc_msgs::ArduinoBattery batteryMsg;
+    batteryMsg.cell1 = values[2];
+    batteryMsg.cell2 = values[3];
+    batteryMsg.cell3 = values[4];
+    batteryMsg.cell4 = values[5];
+    batteryMsg.cell5 = values[6];
+    batteryMsg.cell6 = values[7];
+    batteryMsg.temp = values[8];
+
+    arduinoKillStatePub.publish(killStateMsg);
+    arduinoBatteryPub.publish(batteryMsg);
 } // END of publishArduinoInfo() function
 
 // Main function
