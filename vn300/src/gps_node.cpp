@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <ros/console.h>
 #include <sensor_msgs/NavSatFix.h>
+#include <sensor_msgs/Imu.h>
 #include <vn/sensors/sensors.h>
 
 #include <vn300/Pose.h>
@@ -156,29 +157,35 @@ void vn300_packet_handler(void *userdata, vn::protocol::uart::Packet &p, size_t 
 			msg.status.service = 5;
 
 			msg.latitude = pos_lla[0];
-			msg.latitude = pos_lla[1];
-			msg.latitude = pos_lla[2];
+			msg.longitude = pos_lla[1];
+			msg.altitude = pos_lla[2];
 
 			msg.position_covariance_type = 0;
 
 			obj->publish_pose(msg);
 
-		} else if(p.isCompatible(COMMONGROUP_ANGULARRATE | COMMONGROUP_VELOCITY, TIMEGROUP_NONE, IMUGROUP_NONE, GPSGROUP_VELU, ATTITUDEGROUP_NONE, INSGROUP_NONE)) {			
+		} else if(p.isCompatible(COMMONGROUP_QTN | COMMONGROUP_ANGULARRATE | COMMONGROUP_ACCEL, TIMEGROUP_NONE, IMUGROUP_NONE, GPSGROUP_NONE, ATTITUDEGROUP_NONE, INSGROUP_NONE)) {			
 			// p is a velocities packet
-			vn300::Velocities msg;
+			sensor_msgs::Imu msg;
 				
 			msg.header.stamp = ros::Time::now();
 		
-			vec3f angular_rate = p.extractVec3f();
-			vec3f vel_ned = p.extractVec3f();
-			float vel_u = p.extractFloat(); // note vel_u field in GPS group is NOT a vector of 3 floats, but a single float. attempting to extract a vec3f will cause the program to become nonresponsive.
+			vec4f qtn = p.extractVec4f();
+			vec3f ang_rate = p.extractVec3f();
+			vec3f lin_accel = p.extractVec3f();
+			
+			msg.orientation.x = qtn[0];
+			msg.orientation.y = qtn[1];
+			msg.orientation.z = qtn[2];
+			msg.orientation.w = qtn[3];
 
-			msg.velocity[3] = vel_u;
+			msg.angular_velocity.x = ang_rate[0];
+			msg.angular_velocity.y = ang_rate[1];
+			msg.angular_velocity.z = ang_rate[2];
 
-			for(int i = 0; i < 3; i++) {
-				msg.velocity[i] = vel_ned[i];
-				msg.angular[i] = angular_rate[i];
-			}
+			msg.linear_acceleration.x = lin_accel[0];
+			msg.linear_acceleration.y = lin_accel[1];
+			msg.linear_acceleration.z = lin_accel[2];
 
 			obj->publish_velocity(msg);
 
@@ -247,10 +254,10 @@ void vn300_node::setup(int pose_rate, int vel_rate, int status_rate) {
 	BinaryOutputRegister velocities_bor(
 		ASYNCMODE_PORT1,
 		50,
-		COMMONGROUP_ANGULARRATE | COMMONGROUP_VELOCITY,
+		COMMONGROUP_QTN | COMMONGROUP_ANGULARRATE | COMMONGROUP_VELOCITY,
 		TIMEGROUP_NONE,
 		IMUGROUP_NONE,
-		GPSGROUP_VELU,
+		GPSGROUP_NONE,
 		ATTITUDEGROUP_NONE,
 		INSGROUP_NONE
 	);
@@ -314,7 +321,7 @@ vn300_node::vn300_node() :
 	ROS_INFO("Connected to %s at %d baud", device.c_str(), rate);
 
 	pose = node.advertise< sensor_msgs::NavSatFix >("pose", true);
-	velocity = node.advertise< vn300::Velocities >("velocities", true);
+	velocity = node.advertise< sensor_msgs::Imu >("velocities", true);
 	status = node.advertise< vn300::Status >("status", true);
 
 	setup(pose_hz, vel_hz, status_hz);
