@@ -1,0 +1,25 @@
+# layer list
+plugins: 
+	- {name: static_map, type: "costmap_2d::StaticLayer"}
+	- {name: laser, type: "costmap2d::ObstacleLayer"}
+	- {name: camera, type: "costmap2d::ObstacleLayer"}
+	- {name: inflation, type: "costmap2d::InflationLayer"}
+
+# other config options
+publish_frequency: 1.0
+#footprint: [[xn, yn]]
+
+static_map:
+  map_topic: /map
+  subscribe_to_updates: true
+  
+laser:
+  observation_sources: laser_sensor
+  laser_sensor: {topic: /scan, sensor_frame: laser, data_type: LaserScan, clearing: true, marking: true, obstacle_range: 10.0, raytrace_range: 10.0}
+
+camera:
+  observation_sources: vision_sensor
+  vision_sensor: {topic: /camera, sensor_frame: camera, data_type: PointCloud, clearing: true, marking: true, obstacle_range: 3.0, raytrace_range: 3.0}
+
+inflation:
+  inflation_radius: 0.55
